@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ورشة اللغة — تعلّم الأوردو لبيئة المعرض</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Noto+Nastaliq+Urdu:wght@400;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#241f1a;
+    --paper:#efe7d6;
+    --paper-deep:#e4d9c1;
+    --indigo:#293b64;
+    --indigo-deep:#1c2947;
+    --saffron:#e2a13a;
+    --clay:#b85c3a;
+    --line:#c9bc9e;
+    --good:#4c7a52;
+    --bad:#a4423a;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Cairo',sans-serif;
+    line-height:1.6;
+  }
+  .urdu{font-family:'Noto Nastaliq Urdu',serif; direction:rtl; unicode-bidi:isolate;}
+  .translit{font-family:'Fraunces',serif; font-style:italic; direction:ltr; unicode-bidi:isolate; color:#5a5142;}
+
+  header.top{
+    background:var(--indigo);
+    color:var(--paper);
+    padding:28px 20px 22px;
+    border-bottom:6px solid var(--saffron);
+  }
+  header.top .wrap{max-width:880px;margin:0 auto;}
+  header.top h1{
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:clamp(28px,5vw,40px);
+    margin:0 0 6px;
+  }
+  header.top p{margin:0;color:#cfd6e6;font-size:15px;max-width:60ch;}
+
+  .stats{
+    display:flex;
+    gap:0;
+    max-width:880px;
+    margin:0 auto;
+    background:var(--indigo-deep);
+  }
+  .stats div{
+    flex:1;
+    text-align:center;
+    padding:14px 8px;
+    border-inline-start:1px solid rgba(255,255,255,.12);
+    color:var(--paper);
+  }
+  .stats div:first-child{border-inline-start:none;}
+  .stats b{display:block;font-size:26px;font-family:'Fraunces',serif;color:var(--saffron);}
+  .stats span{font-size:12.5px;color:#b9c2d8;}
+
+  main{max-width:880px;margin:0 auto;padding:28px 20px 80px;}
+
+  nav.tabs{
+    display:flex;
+    gap:2px;
+    margin-bottom:26px;
+    border-bottom:2px solid var(--line);
+    flex-wrap:wrap;
+  }
+  nav.tabs button{
+    flex:1;
+    min-width:110px;
+    background:none;
+    border:none;
+    font-family:'Cairo',sans-serif;
+    font-size:15px;
+    font-weight:600;
+    padding:12px 6px;
+    color:#7a705c;
+    cursor:pointer;
+    border-bottom:3px solid transparent;
+    margin-bottom:-2px;
+    transition:color .15s;
+  }
+  nav.tabs button.active{color:var(--indigo);border-bottom-color:var(--clay);}
+  nav.tabs button:hover{color:var(--indigo);}
+
+  section.tab{display:none;}
+  section.tab.active{display:block;}
+
+  h2.section-title{
+    font-family:'Fraunces',serif;
+    font-size:22px;
+    font-weight:700;
+    margin:0 0 4px;
+    color:var(--indigo-deep);
+  }
+  p.section-sub{margin:0 0 20px;color:#6a6150;font-size:14px;}
+
+  /* ===== Review card ===== */
+  .review-empty{
+    text-align:center;
+    padding:60px 20px;
+    border:1px dashed var(--line);
+  }
+  .review-empty b{display:block;font-size:19px;margin-bottom:6px;color:var(--indigo-deep);}
+
+  .card{
+    background:#fbf8f0;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:0;
+    overflow:hidden;
+  }
+  .card .face{
+    padding:44px 24px;
+    text-align:center;
+    min-height:180px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+  }
+  .card .direction-tag{
+    font-size:12px;
+    color:#9a8f76;
+    letter-spacing:.02em;
+  }
+  .card .prompt{font-size:26px;font-weight:700;}
+  .card .prompt.urdu{font-size:34px;}
+  .card .answer{
+    border-top:1px dashed var(--line);
+    padding:28px 24px 32px;
+    text-align:center;
+    background:var(--paper-deep);
+    display:none;
+  }
+  .card .answer.show{display:block;}
+  .card .answer .urdu{font-size:32px;display:block;margin-bottom:6px;}
+  .card .answer .translit{font-size:17px;display:block;margin-bottom:14px;}
+  .card .answer .ar-echo{font-size:14px;color:#7a705c;margin-bottom:16px;}
+
+  button.speak{
+    background:var(--indigo);
+    color:var(--paper);
+    border:none;
+    border-radius:50%;
+    width:46px;height:46px;
+    font-size:18px;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+  button.speak:hover{background:var(--indigo-deep);}
+  button.speak.small{width:34px;height:34px;font-size:14px;}
+  button.speak[disabled]{opacity:.5;cursor:wait;}
+
+  .reveal-btn{
+    display:block;
+    width:100%;
+    padding:16px;
+    background:var(--saffron);
+    color:var(--indigo-deep);
+    border:none;
+    font-family:'Cairo',sans-serif;
+    font-weight:700;
+    font-size:15px;
+    cursor:pointer;
+  }
+  .reveal-btn:hover{filter:brightness(.96);}
+
+  .grade-row{display:flex;gap:0;}
+  .grade-row button{
+    flex:1;
+    padding:16px 8px;
+    border:none;
+    font-family:'Cairo',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    color:#fff;
+  }
+  .grade-again{background:var(--bad);}
+  .grade-hard{background:#8a6a2e;}
+  .grade-easy{background:var(--good);}
+  .grade-row button:hover{filter:brightness(1.08);}
+
+  /* ===== Ledger (browse) ===== */
+  .cat-block{margin-bottom:28px;}
+  .cat-head{
+    font-weight:700;
+    font-size:15px;
+    color:var(--indigo-deep);
+    padding-bottom:6px;
+    border-bottom:2px solid var(--indigo);
+    margin-bottom:2px;
+  }
+  .ledger-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:12px 4px;
+    border-bottom:1px solid var(--line);
+  }
+  .ledger-row .col-ar{flex:1;font-size:15px;}
+  .ledger-row .col-ur{flex:1;text-align:center;}
+  .ledger-row .col-ur .urdu{font-size:20px;}
+  .ledger-row .col-ur .translit{font-size:13px;display:block;}
+  .ledger-row .col-box{width:70px;display:flex;gap:3px;justify-content:flex-end;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--line);}
+  .dot.filled{background:var(--clay);}
+
+  /* ===== Add form ===== */
+  form.add-form{display:flex;flex-direction:column;gap:14px;max-width:520px;}
+  form.add-form label{font-size:13.5px;color:#6a6150;font-weight:600;}
+  form.add-form input, form.add-form select, textarea.batch-area, .gh-settings input{
+    padding:11px 12px;
+    border:1px solid var(--line);
+    background:#fbf8f0;
+    border-radius:var(--radius);
+    font-family:'Cairo',sans-serif;
+    font-size:15px;
+    color:var(--ink);
+    width:100%;
+  }
+  form.add-form input.ur-field{font-family:'Noto Nastaliq Urdu',serif;font-size:18px;direction:rtl;}
+  form.add-form input.translit-field{font-family:'Fraunces',serif;direction:ltr;}
+  form.add-form button, .btn{
+    align-self:flex-start;
+    background:var(--indigo);
+    color:var(--paper);
+    border:none;
+    padding:12px 26px;
+    border-radius:var(--radius);
+    font-family:'Cairo',sans-serif;
+    font-weight:700;
+    font-size:14.5px;
+    cursor:pointer;
+    margin-top:6px;
+  }
+  form.add-form button:hover, .btn:hover{background:var(--indigo-deep);}
+  .btn.secondary{background:transparent;color:var(--indigo);border:1px solid var(--indigo);}
+  .btn.secondary:hover{background:var(--indigo);color:var(--paper);}
+  .btn.danger{background:transparent;color:var(--bad);border:1px solid var(--bad);}
+  .btn.danger:hover{background:var(--bad);color:#fff;}
+  .btn[disabled]{opacity:.55;cursor:wait;}
+  .hint{font-size:12.5px;color:#8a806c;margin-top:-6px;}
+
+  hr.divider{border:none;border-top:1px dashed var(--line);margin:32px 0;}
+
+  textarea.batch-area{min-height:140px;font-family:'Cairo',sans-serif;resize:vertical;}
+
+  /* ===== data tab ===== */
+  .data-actions{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;}
+  .data-actions button, .data-actions label{
+    background:var(--indigo);
+    color:var(--paper);
+    border:none;
+    padding:12px 20px;
+    border-radius:var(--radius);
+    font-family:'Cairo',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    display:inline-block;
+  }
+  .data-actions input[type=file]{display:none;}
+  .data-actions button:hover, .data-actions label:hover{background:var(--indigo-deep);}
+
+  details.method{
+    border:1px solid var(--line);
+    background:#fbf8f0;
+    padding:6px 18px;
+    margin-bottom:22px;
+  }
+  details.method summary{cursor:pointer;font-weight:700;padding:12px 0;color:var(--indigo-deep);}
+  details.method p{font-size:14px;color:#4a4232;margin:0 0 14px;}
+  details.method p:last-child{margin-bottom:14px;}
+
+  .voice-warn{
+    font-size:13px;
+    background:#f3e3c9;
+    border:1px solid var(--saffron);
+    padding:10px 14px;
+    margin-bottom:18px;
+    display:none;
+  }
+  .voice-warn.show{display:block;}
+
+  .gh-box{
+    border:1px solid var(--line);
+    background:#fbf8f0;
+    padding:20px;
+    margin-bottom:26px;
+  }
+  .gh-box h3{margin:0 0 6px;font-family:'Fraunces',serif;font-size:18px;color:var(--indigo-deep);}
+  .gh-box p{font-size:13.5px;color:#5a5142;margin:0 0 14px;}
+  .gh-settings{display:flex;flex-direction:column;gap:12px;max-width:520px;}
+  .gh-settings label{font-size:13px;font-weight:600;color:#6a6150;}
+  .gh-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:10px;}
+  .gh-status{font-size:13px;padding:8px 12px;border-radius:var(--radius);display:none;margin-top:10px;}
+  .gh-status.show{display:block;}
+  .gh-status.ok{background:#e2ecdf;color:var(--good);border:1px solid var(--good);}
+  .gh-status.err{background:#f4dedb;color:var(--bad);border:1px solid var(--bad);}
+  .gh-status.busy{background:#f3e3c9;color:#7a5a1e;border:1px solid var(--saffron);}
+
+  #toast{
+    position:fixed;
+    bottom:20px;
+    inset-inline-start:50%;
+    transform:translateX(50%);
+    background:var(--indigo-deep);
+    color:var(--paper);
+    padding:12px 22px;
+    border-radius:var(--radius);
+    font-size:14px;
+    box-shadow:0 4px 18px rgba(0,0,0,.25);
+    z-index:999;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .25s, transform .25s;
+    max-width:90vw;
+    text-align:center;
+  }
+  #toast.show{opacity:1;transform:translateX(50%) translateY(-6px);}
+
+  footer{
+    text-align:center;
+    padding:26px 20px 40px;
+    font-size:12.5px;
+    color:#8a806c;
+  }
+
+  @media (max-width:520px){
+    .ledger-row{flex-wrap:wrap;}
+    .ledger-row .col-box{order:3;width:100%;justify-content:flex-start;margin-top:4px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <h1>ورشة اللغة</h1>
+    <p>تعلّم مصطلحات الأوردو العملية للتفاهم مع العمالة في المعرض — بمنهج التكرار المتباعد (spaced repetition) والاستدعاء الفعّال (active recall).</p>
+  </div>
+</header>
+
+<div class="stats">
+  <div><b id="stat-due">0</b><span>مستحق اليوم</span></div>
+  <div><b id="stat-total">0</b><span>إجمالي الجمل</span></div>
+  <div><b id="stat-mastered">0</b><span>متقنة</span></div>
+</div>
+
+<main>
+
+  <nav class="tabs">
+    <button data-tab="review" class="active">المراجعة اليومية</button>
+    <button data-tab="browse">كل الجمل</button>
+    <button data-tab="add">إضافة جملة</button>
+    <button data-tab="data">البيانات والمزامنة</button>
+  </nav>
+
+  <!-- ============ REVIEW TAB ============ -->
+  <section class="tab active" id="tab-review">
+    <h2 class="section-title">حصة المراجعة</h2>
+    <p class="section-sub">استرجع الجملة من ذاكرتك قبل أن تكشف الإجابة — الاستدعاء هو ما يثبّت الحفظ، وليس إعادة القراءة.</p>
+    <div class="voice-warn" id="voice-warn">
+      لا يوجد صوت أوردو مثبّت في متصفحك، لذلك سيُستخدم صوت بديل عبر الإنترنت (ترجمة جوجل الصوتية) عند الاستماع. يتطلب هذا اتصالًا بالإنترنت.
+    </div>
+    <div id="review-area"></div>
+  </section>
+
+  <!-- ============ BROWSE TAB ============ -->
+  <section class="tab" id="tab-browse">
+    <h2 class="section-title">كل الجمل</h2>
+    <p class="section-sub">النقاط أمام كل جملة تمثل مستوى إتقانك لها (من 1 إلى 5).</p>
+    <div id="browse-area"></div>
+  </section>
+
+  <!-- ============ ADD TAB ============ -->
+  <section class="tab" id="tab-add">
+    <h2 class="section-title">إضافة جملة جديدة</h2>
+    <p class="section-sub">أضف أي جملة (ستُنشئها أنت من محادثتك مع Claude) لتدخل مباشرة في دورة المراجعة.</p>
+    <form class="add-form" id="add-form">
+      <div>
+        <label>الجملة بالعربية</label>
+        <input type="text" id="f-ar" required placeholder="مثال: أحضر الكرتون الثاني">
+      </div>
+      <div>
+        <label>الأوردو بالخط الأصلي (لأجل النطق الصحيح)</label>
+        <input type="text" class="ur-field" id="f-ur" required placeholder="مثال: دوسرا ڈبہ لے آؤ">
+        <div class="hint">هذا الحقل هو ما يُستخدم في تشغيل الصوت — اطلب من Claude كتابته بالخط الأوردي.</div>
+      </div>
+      <div>
+        <label>النطق بالحروف اللاتينية</label>
+        <input type="text" class="translit-field" id="f-translit" required placeholder="Doosra dabba le aao">
+      </div>
+      <div>
+        <label>التصنيف</label>
+        <select id="f-cat"></select>
+      </div>
+      <button type="submit">أضف إلى قائمة المراجعة</button>
+    </form>
+
+    <hr class="divider">
+
+    <h2 class="section-title">إضافة مجموعة جمل دفعة واحدة</h2>
+    <p class="section-sub">
+      الصق عدة جمل مرة واحدة — سطر لكل جملة، بالصيغة:
+      <br><code>العربية | الأوردو | النطق اللاتيني | التصنيف (اختياري)</code>
+      <br>يمكنك أيضًا لصق قائمة JSON بنفس شكل <code>{ar, ur, translit, cat}</code> إن طلبت من Claude توليدها بهذا الشكل مباشرة.
+    </p>
+    <textarea class="batch-area" id="batch-area" placeholder="أحضر الكرتون الثاني | دوسرا ڈبہ لے آؤ | Doosra dabba le aao | ترتيب المحل والبضاعة
+كم الساعة؟ | ٹائم کیا ہوا ہے؟ | Time kya hua hai? | تحيات وأساسيات"></textarea>
+    <div class="gh-row">
+      <label>التصنيف الافتراضي للسطور بلا تصنيف</label>
+      <select id="batch-cat"></select>
+    </div>
+    <button type="button" class="btn" id="batch-add-btn" style="margin-top:14px;">أضف الكل</button>
+  </section>
+
+  <!-- ============ DATA TAB ============ -->
+  <section class="tab" id="tab-data">
+    <h2 class="section-title">حفظ ونقل بياناتك</h2>
+
+    <div class="gh-box">
+      <h3>المزامنة التلقائية عبر GitHub</h3>
+      <p>
+        اربط الأداة بمستودعك على GitHub ليُحفظ تقدّمك وكلماتك تلقائيًا هناك بعد كل تعديل، وتستطيع فتح الرابط من أي جهاز آخر
+        والمتابعة من حيث توقفت. يلزمك إنشاء
+        <b>Personal Access Token دقيق الصلاحية (Fine-grained)</b> مقتصر على هذا المستودع فقط بصلاحية
+        <b>Contents: Read and write</b> — لا تُعطِه أي صلاحية إضافية. الرمز يُحفظ في متصفحك فقط (localStorage) ولا يُرسل إلى أي مكان
+        سوى GitHub مباشرة، ولا يُحفظ داخل المستودع أبدًا.
+      </p>
+      <div class="gh-settings">
+        <div>
+          <label>Personal Access Token</label>
+          <input type="password" id="gh-token" placeholder="github_pat_...">
+        </div>
+        <div>
+          <label>المالك (owner)</label>
+          <input type="text" id="gh-owner" placeholder="newSaleh">
+        </div>
+        <div>
+          <label>المستودع (repo)</label>
+          <input type="text" id="gh-repo" placeholder="UrduLearning">
+        </div>
+        <div>
+          <label>الفرع (branch)</label>
+          <input type="text" id="gh-branch" placeholder="main">
+        </div>
+        <div class="gh-row">
+          <button type="button" class="btn" id="gh-save-btn">حفظ الإعدادات</button>
+          <button type="button" class="btn secondary" id="gh-sync-btn">مزامنة الآن</button>
+          <button type="button" class="btn danger" id="gh-clear-btn">إزالة الرمز من هذا الجهاز</button>
+        </div>
+      </div>
+      <div class="gh-status" id="gh-status"></div>
+    </div>
+
+    <p class="section-sub">
+      بالإضافة إلى ذلك يمكنك تصدير تقدّمك يدويًا كملف JSON في أي لحظة، أو استيراد ملف سابق.
+    </p>
+    <div class="data-actions">
+      <button id="export-btn" type="button">تصدير التقدّم (JSON)</button>
+      <label for="import-file">استيراد ملف تقدّم</label>
+      <input type="file" id="import-file" accept="application/json">
+    </div>
+
+    <details class="method">
+      <summary>المنهج العلمي المستخدم في هذه الأداة</summary>
+      <p><b>التكرار المتباعد (Spaced Repetition):</b> الذاكرة تضعف بمرور الوقت وفق ما يُعرف بمنحنى النسيان لإبنغهاوس؛ مراجعة المعلومة قبل أن تُنسى تمامًا، على فترات متزايدة، تُثبّتها في الذاكرة طويلة المدى بجهد أقل من التكرار العشوائي.</p>
+      <p><b>نظام الصناديق (Leitner System):</b> كل جملة تنتقل بين 5 مستويات؛ كلما أجبت بصواب انتقلت لمستوى أبعد زمنيًا (بعد يوم، يومين، 4 أيام، أسبوع، أسبوعين)، وإن أخطأت تعود للمستوى الأول. هذا يوجّه وقتك تلقائيًا نحو الجمل التي تحتاج تكرارًا أكثر.</p>
+      <p><b>أثر الاختبار (Testing Effect):</b> محاولة تذكّر الإجابة بنفسك — قبل كشفها — يثبّت المعلومة أكثر من مجرد قراءتها مرارًا، ولهذا تُعرض الجملة أولًا وتُطلب منك الإجابة قبل الكشف.</p>
+      <p><b>الاتجاه المزدوج:</b> تتناوب الأداة بين عرض العربية (لتتذكر الأوردو) وعرض الأوردو (لتتذكر المعنى)، لأن الفهم في الاتجاهين يختلف عمليًا عن الحفظ في اتجاه واحد فقط.</p>
+    </details>
+  </section>
+
+</main>
+
+<footer>أداة شخصية لتعلّم لغة العمل — بياناتك تُحفظ محليًا في هذا المتصفح، وتُزامَن مع GitHub إن فعّلت ذلك.</footer>
+
+<div id="toast"></div>
+
+<script>
+/* ============ SEED DATA ============ */
+const SEED_PHRASES = [
+  // تحيات وأساسيات
+  {ar:"السلام عليكم", ur:"السلام علیکم", translit:"Assalamu Alaikum", cat:"تحيات وأساسيات"},
+  {ar:"كيف حالك؟", ur:"کیا حال ہے؟", translit:"Kya haal hai?", cat:"تحيات وأساسيات"},
+  {ar:"بخير", ur:"ٹھیک ہے", translit:"Theek hai", cat:"تحيات وأساسيات"},
+  {ar:"شكرًا", ur:"شکریہ", translit:"Shukriya", cat:"تحيات وأساسيات"},
+  {ar:"نعم", ur:"ہاں", translit:"Haan", cat:"تحيات وأساسيات"},
+  {ar:"لا", ur:"نہیں", translit:"Nahi", cat:"تحيات وأساسيات"},
+  {ar:"من فضلك", ur:"مہربانی", translit:"Meherbani", cat:"تحيات وأساسيات"},
+  {ar:"فهمت", ur:"سمجھ گیا", translit:"Samajh gaya", cat:"تحيات وأساسيات"},
+  {ar:"ما فهمت", ur:"سمجھ نہیں آیا", translit:"Samajh nahi aaya", cat:"تحيات وأساسيات"},
+
+  // أوامر يومية
+  {ar:"تعال هنا", ur:"ادھر آؤ", translit:"Idhar aao", cat:"أوامر يومية"},
+  {ar:"اذهب هناك", ur:"ادھر جاؤ", translit:"Udhar jao", cat:"أوامر يومية"},
+  {ar:"بسرعة", ur:"جلدی کرو", translit:"Jaldi karo", cat:"أوامر يومية"},
+  {ar:"ببطء", ur:"آہستہ", translit:"Aahista", cat:"أوامر يومية"},
+  {ar:"انتظر شوي", ur:"تھوڑا رکو", translit:"Thoda ruko", cat:"أوامر يومية"},
+  {ar:"خلص؟", ur:"ختم ہوا؟", translit:"Khatam hua?", cat:"أوامر يومية"},
+  {ar:"ابدأ الشغل", ur:"کام شروع کرو", translit:"Kaam shuru karo", cat:"أوامر يومية"},
+  {ar:"توقف", ur:"رک جاؤ", translit:"Ruk jao", cat:"أوامر يومية"},
+  {ar:"تعال معي", ur:"میرے ساتھ آؤ", translit:"Mere saath aao", cat:"أوامر يومية"},
+
+  // ترتيب المحل والبضاعة
+  {ar:"رتّب البضاعة", ur:"مال ٹھیک کرو", translit:"Maal theek karo", cat:"ترتيب المحل والبضاعة"},
+  {ar:"اطوِ الملابس", ur:"کپڑے فولڈ کرو", translit:"Kapre fold karo", cat:"ترتيب المحل والبضاعة"},
+  {ar:"علّق على الشماعة", ur:"ہینگر پے لٹکاؤ", translit:"Hanger pe latkao", cat:"ترتيب المحل والبضاعة"},
+  {ar:"نظّف المحل", ur:"دکان صاف کرو", translit:"Dukaan saaf karo", cat:"ترتيب المحل والبضاعة"},
+  {ar:"افتح الكراتين", ur:"ڈبے کھولو", translit:"Dabbe kholo", cat:"ترتيب المحل والبضاعة"},
+  {ar:"ضع في المخزن", ur:"گودام میں رکھو", translit:"Godam mein rakho", cat:"ترتيب المحل والبضاعة"},
+  {ar:"أحضر من المخزن", ur:"گودام سے لے آؤ", translit:"Godam se le aao", cat:"ترتيب المحل والبضاعة"},
+  {ar:"رتّب حسب المقاس", ur:"سائز کے حساب سے لگاؤ", translit:"Size ke hisaab se lagao", cat:"ترتيب المحل والبضاعة"},
+  {ar:"رتّب حسب اللون", ur:"رنگ کے حساب سے لگاؤ", translit:"Rang ke hisaab se lagao", cat:"ترتيب المحل والبضاعة"},
+
+  // مقاسات وألوان
+  {ar:"مقاس", ur:"سائز", translit:"Size", cat:"مقاسات وألوان"},
+  {ar:"كبير", ur:"بڑا", translit:"Bara", cat:"مقاسات وألوان"},
+  {ar:"وسط", ur:"میڈیم", translit:"Medium", cat:"مقاسات وألوان"},
+  {ar:"صغير", ur:"چھوٹا", translit:"Chota", cat:"مقاسات وألوان"},
+  {ar:"لون", ur:"رنگ", translit:"Rang", cat:"مقاسات وألوان"},
+  {ar:"أسود", ur:"کالا", translit:"Kala", cat:"مقاسات وألوان"},
+  {ar:"أبيض", ur:"سفید", translit:"Safed", cat:"مقاسات وألوان"},
+  {ar:"أحمر", ur:"لال", translit:"Laal", cat:"مقاسات وألوان"},
+
+  // مع الزبائن
+  {ar:"زبون", ur:"گاہک", translit:"Grahak", cat:"مع الزبائن"},
+  {ar:"كم السعر؟", ur:"کتنے کا ہے؟", translit:"Kitne ka hai?", cat:"مع الزبائن"},
+  {ar:"خصم", ur:"چھوٹ", translit:"Chhoot", cat:"مع الزبائن"},
+  {ar:"غرفة القياس", ur:"ٹرائل روم", translit:"Trial room", cat:"مع الزبائن"},
+  {ar:"هذا غير متوفر", ur:"یہ دستیاب نہیں ہے", translit:"Yeh available nahi hai", cat:"مع الزبائن"},
+  {ar:"عندنا مقاس ثاني", ur:"دوسرا سائز ہے", translit:"Doosra size hai", cat:"مع الزبائن"},
+
+  // الجرد والمحاسبة
+  {ar:"عدّ القطع", ur:"گنتی کرو", translit:"Ginti karo", cat:"الجرد والمحاسبة"},
+  {ar:"كم العدد؟", ur:"کتنے ہیں؟", translit:"Kitne hain?", cat:"الجرد والمحاسبة"},
+  {ar:"ناقص", ur:"کم ہے", translit:"Kum hai", cat:"الجرد والمحاسبة"},
+  {ar:"زيادة", ur:"زیادہ ہے", translit:"Zyada hai", cat:"الجرد والمحاسبة"},
+  {ar:"فاتورة", ur:"بل", translit:"Bill", cat:"الجرد والمحاسبة"},
+  {ar:"افتح المحل", ur:"دکان کھولو", translit:"Dukaan kholo", cat:"الجرد والمحاسبة"},
+  {ar:"أغلق المحل", ur:"دکان بند کرو", translit:"Dukaan band karo", cat:"الجرد والمحاسبة"},
+
+  // توجيه وتصحيح
+  {ar:"خطأ، مو كذا", ur:"غلط ہے، ایسے نہیں", translit:"Ghalat hai, aise nahi", cat:"توجيه وتصحيح"},
+  {ar:"صح، تمام", ur:"صحیح ہے، ٹھیک ہے", translit:"Sahi hai, theek hai", cat:"توجيه وتصحيح"},
+  {ar:"ليش ما سويت كذا؟", ur:"یہ کیوں نہیں کیا؟", translit:"Yeh kyun nahi kiya?", cat:"توجيه وتصحيح"},
+  {ar:"افعلها من جديد", ur:"دوبارہ کرو", translit:"Dobara karo", cat:"توجيه وتصحيح"},
+  {ar:"انتبه", ur:"دھیان دو", translit:"Dhyan do", cat:"توجيه وتصحيح"},
+];
+
+const INTERVALS = [0, 1, 2, 4, 7, 14]; // index = box (1..5), box0 unused
+const LOCAL_KEY = "urduWorkshop:state:v1";
+const GH_CFG_KEY = "urduWorkshop:ghConfig:v1";
+
+/* ============ UTIL ============ */
+function esc(s){
+  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function addDays(dateStr, n){
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0,10);
+}
+let toastTimer = null;
+function toast(msg, ms = 3200){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), ms);
+}
+
+/* ============ STATE ============ */
+let phrases = [];   // {id, ar, ur, translit, cat}
+let progress = {};  // id -> {box, due}
+let updatedAt = 0;  // epoch ms of last local mutation, used to resolve sync conflicts
+
+function seedFresh(){
+  phrases = SEED_PHRASES.map((p, i) => ({ id: "seed-" + i, ...p }));
+  progress = {};
+  phrases.forEach(p => { progress[p.id] = { box: 1, due: todayStr() }; });
+  updatedAt = Date.now();
+}
+
+function loadLocal(){
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (!raw) { seedFresh(); return; }
+    const data = JSON.parse(raw);
+    if (data && Array.isArray(data.phrases) && data.progress){
+      phrases = data.phrases;
+      progress = data.progress;
+      updatedAt = data.updatedAt || 0;
+    } else {
+      seedFresh();
+    }
+  } catch(e){
+    seedFresh();
+  }
+}
+
+function saveLocal(){
+  updatedAt = Date.now();
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify({ phrases, progress, updatedAt }));
+  } catch(e){ /* storage full or blocked — sync to GitHub still possible */ }
+}
+
+function applyState(next, persist = true){
+  phrases = next.phrases;
+  progress = next.progress;
+  updatedAt = next.updatedAt || Date.now();
+  if (persist){
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ phrases, progress, updatedAt })); } catch(e){}
+  }
+  updateStats();
+  renderReview();
+  const browseTab = document.getElementById("tab-browse");
+  if (browseTab.classList.contains("active")) renderBrowse();
+}
+
+loadLocal();
+
+/* ============ GITHUB SYNC ============ */
+const DEFAULT_GH = { owner: "newSaleh", repo: "UrduLearning", branch: "main", path: "data/progress.json" };
+let ghToken = "";
+let ghCfg = { ...DEFAULT_GH };
+let ghKnownSha = null;
+let ghSyncTimer = null;
+let ghSyncing = false;
+
+function loadGhConfig(){
+  try {
+    const raw = localStorage.getItem(GH_CFG_KEY);
+    if (raw){
+      const c = JSON.parse(raw);
+      ghToken = c.token || "";
+      ghCfg = { ...DEFAULT_GH, ...(c.cfg || {}) };
+    }
+  } catch(e){}
+  document.getElementById("gh-token").value = ghToken;
+  document.getElementById("gh-owner").value = ghCfg.owner;
+  document.getElementById("gh-repo").value = ghCfg.repo;
+  document.getElementById("gh-branch").value = ghCfg.branch;
+}
+
+function saveGhConfig(){
+  ghToken = document.getElementById("gh-token").value.trim();
+  ghCfg.owner = document.getElementById("gh-owner").value.trim() || DEFAULT_GH.owner;
+  ghCfg.repo = document.getElementById("gh-repo").value.trim() || DEFAULT_GH.repo;
+  ghCfg.branch = document.getElementById("gh-branch").value.trim() || DEFAULT_GH.branch;
+  try {
+    localStorage.setItem(GH_CFG_KEY, JSON.stringify({ token: ghToken, cfg: ghCfg }));
+  } catch(e){}
+}
+
+function ghStatus(msg, kind){
+  const el = document.getElementById("gh-status");
+  el.textContent = msg;
+  el.className = "gh-status show " + (kind || "");
+}
+
+function b64EncodeUtf8(str){
+  return btoa(unescape(encodeURIComponent(str)));
+}
+function b64DecodeUtf8(str){
+  return decodeURIComponent(escape(atob(str)));
+}
+
+async function ghApi(path, opts = {}){
+  const res = await fetch("https://api.github.com" + path, {
+    ...opts,
+    headers: {
+      "Accept": "application/vnd.github+json",
+      "Authorization": "Bearer " + ghToken,
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...(opts.headers || {}),
+    },
+  });
+  return res;
+}
+
+async function ghFetchRemote(){
+  const { owner, repo, branch, path } = ghCfg;
+  const res = await ghApi(`/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`);
+  if (res.status === 404) return { exists: false, sha: null, data: null };
+  if (!res.ok) throw new Error("تعذّر الاتصال بـ GitHub (" + res.status + ")");
+  const json = await res.json();
+  const content = b64DecodeUtf8(json.content.replace(/\n/g, ""));
+  const data = JSON.parse(content);
+  return { exists: true, sha: json.sha, data };
+}
+
+async function ghPushState(){
+  const { owner, repo, branch, path } = ghCfg;
+  const payload = { phrases, progress, updatedAt, exportedAt: new Date().toISOString() };
+  const body = {
+    message: "تحديث تقدّم ورشة اللغة",
+    content: b64EncodeUtf8(JSON.stringify(payload, null, 2)),
+    branch,
+  };
+  if (ghKnownSha) body.sha = ghKnownSha;
+  let res = await ghApi(`/repos/${owner}/${repo}/contents/${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 409 || res.status === 422){
+    // sha mismatch — someone else (another device) wrote in the meantime; refetch and retry once
+    const remote = await ghFetchRemote();
+    ghKnownSha = remote.sha;
+    body.sha = remote.sha;
+    res = await ghApi(`/repos/${owner}/${repo}/contents/${path}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+  if (!res.ok){
+    const errText = await res.text().catch(() => "");
+    throw new Error("فشل الحفظ على GitHub (" + res.status + ") " + errText.slice(0,150));
+  }
+  const json = await res.json();
+  ghKnownSha = json.content.sha;
+}
+
+function scheduleGhSync(){
+  if (!ghToken) return;
+  clearTimeout(ghSyncTimer);
+  ghSyncTimer = setTimeout(doGhSync, 2000);
+}
+
+async function doGhSync(){
+  if (!ghToken || ghSyncing) return;
+  ghSyncing = true;
+  ghStatus("جارٍ المزامنة مع GitHub...", "busy");
+  try {
+    await ghPushState();
+    ghStatus("تمت المزامنة بنجاح — آخر تحديث " + new Date().toLocaleTimeString("ar"), "ok");
+  } catch(e){
+    ghStatus("تعذّرت المزامنة: " + e.message, "err");
+  } finally {
+    ghSyncing = false;
+  }
+}
+
+async function ghInitialSync(){
+  if (!ghToken) return;
+  ghStatus("جارٍ التحقق من نسخة GitHub...", "busy");
+  try {
+    const remote = await ghFetchRemote();
+    if (!remote.exists){
+      // no remote file yet — seed it with whatever we have locally
+      await ghPushState();
+      ghStatus("تم إنشاء ملف المزامنة على GitHub لأول مرة.", "ok");
+      return;
+    }
+    ghKnownSha = remote.sha;
+    const remoteUpdatedAt = remote.data.updatedAt || 0;
+    if (remoteUpdatedAt > updatedAt){
+      applyState(remote.data);
+      toast("تم تحميل أحدث تقدّم من GitHub.");
+      ghStatus("تم التحميل من GitHub — آخر تحديث " + new Date().toLocaleTimeString("ar"), "ok");
+    } else if (updatedAt > remoteUpdatedAt){
+      await ghPushState();
+      ghStatus("تم رفع أحدث نسخة محلية إلى GitHub.", "ok");
+    } else {
+      ghStatus("بياناتك متطابقة مع GitHub.", "ok");
+    }
+  } catch(e){
+    ghStatus("تعذّر الاتصال بـ GitHub: " + e.message, "err");
+  }
+}
+
+document.getElementById("gh-save-btn").addEventListener("click", () => {
+  saveGhConfig();
+  ghKnownSha = null;
+  toast("تم حفظ إعدادات المزامنة.");
+  ghInitialSync();
+});
+document.getElementById("gh-sync-btn").addEventListener("click", () => {
+  if (!ghToken){ ghStatus("أدخل الرمز أولًا واحفظ الإعدادات.", "err"); return; }
+  ghInitialSync();
+});
+document.getElementById("gh-clear-btn").addEventListener("click", () => {
+  ghToken = "";
+  document.getElementById("gh-token").value = "";
+  try {
+    const raw = localStorage.getItem(GH_CFG_KEY);
+    const c = raw ? JSON.parse(raw) : {};
+    localStorage.setItem(GH_CFG_KEY, JSON.stringify({ token: "", cfg: c.cfg || ghCfg }));
+  } catch(e){}
+  ghStatus("تمت إزالة الرمز من هذا الجهاز.", "ok");
+});
+
+/* ============ VOICE ============ */
+let urduVoice = null;
+let voicesReadyPromise = null;
+function pickVoice(){
+  const voices = speechSynthesis.getVoices();
+  urduVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith("ur")) || null;
+  document.getElementById("voice-warn").classList.toggle("show", !urduVoice);
+}
+if ("speechSynthesis" in window){
+  voicesReadyPromise = new Promise(resolve => {
+    const existing = speechSynthesis.getVoices();
+    if (existing.length){ pickVoice(); resolve(); return; }
+    speechSynthesis.onvoiceschanged = () => { pickVoice(); resolve(); };
+    setTimeout(() => { pickVoice(); resolve(); }, 1200);
+  });
+} else {
+  document.getElementById("voice-warn").classList.add("show");
+  voicesReadyPromise = Promise.resolve();
+}
+
+async function speak(text, btn){
+  if (btn) btn.disabled = true;
+  try {
+    await voicesReadyPromise;
+    if (urduVoice){
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = urduVoice.lang;
+      u.voice = urduVoice;
+      u.rate = 0.85;
+      await new Promise(resolve => {
+        u.onend = resolve;
+        u.onerror = resolve;
+        speechSynthesis.speak(u);
+      });
+      return;
+    }
+    // No native Urdu voice: device voices for other languages (e.g. Hindi)
+    // expect their own script and mispronounce Urdu's Perso-Arabic text, so
+    // fall back to an online TTS service that reads Urdu script correctly.
+    const url = "https://translate.google.com/translate_tts?ie=UTF-8&tl=ur&client=tw-ob&q=" + encodeURIComponent(text);
+    const audio = new Audio(url);
+    await audio.play();
+    await new Promise(resolve => {
+      audio.onended = resolve;
+      audio.onerror = resolve;
+    });
+  } catch(e){
+    toast("تعذّر تشغيل الصوت — تحقّق من الاتصال بالإنترنت.");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/* ============ TABS ============ */
+document.querySelectorAll("nav.tabs button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav.tabs button").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll("section.tab").forEach(s => s.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+    if (btn.dataset.tab === "browse") renderBrowse();
+    if (btn.dataset.tab === "add") { renderCatOptions(); renderBatchCatOptions(); }
+  });
+});
+
+/* ============ STATS ============ */
+function updateStats(){
+  const today = todayStr();
+  const due = phrases.filter(p => progress[p.id] && progress[p.id].due <= today).length;
+  const mastered = phrases.filter(p => progress[p.id] && progress[p.id].box >= 5).length;
+  document.getElementById("stat-due").textContent = due;
+  document.getElementById("stat-total").textContent = phrases.length;
+  document.getElementById("stat-mastered").textContent = mastered;
+}
+
+/* ============ REVIEW ============ */
+let queue = [];
+let current = null;
+let currentDirection = "ar"; // "ar" = show Arabic first, "ur" = show Urdu first
+
+function buildQueue(){
+  const today = todayStr();
+  queue = phrases.filter(p => progress[p.id] && progress[p.id].due <= today);
+  queue.sort((a,b) => progress[a.id].due.localeCompare(progress[b.id].due));
+}
+
+function renderReview(){
+  buildQueue();
+  updateStats();
+  const area = document.getElementById("review-area");
+  area.innerHTML = "";
+  if (queue.length === 0){
+    const div = document.createElement("div");
+    div.className = "review-empty";
+    div.innerHTML = `<b>لا توجد جمل مستحقة الآن</b>أحسنت — عد لاحقًا، أو أضف جملًا جديدة من تبويب "إضافة جملة".`;
+    area.appendChild(div);
+    return;
+  }
+  current = queue[0];
+  currentDirection = Math.random() < 0.5 ? "ar" : "ur";
+  const p = current;
+
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const face = document.createElement("div");
+  face.className = "face";
+  if (currentDirection === "ar"){
+    face.innerHTML = `<div class="direction-tag">تذكّر الأوردو</div><div class="prompt">${esc(p.ar)}</div>`;
+  } else {
+    face.innerHTML = `<div class="direction-tag">ما المعنى بالعربية؟</div><div class="prompt urdu">${esc(p.ur)}</div>`;
+    const sayBtn = document.createElement("button");
+    sayBtn.className = "speak small";
+    sayBtn.textContent = "🔊";
+    sayBtn.addEventListener("click", () => speak(p.ur, sayBtn));
+    face.appendChild(sayBtn);
+  }
+  card.appendChild(face);
+
+  const revealBtn = document.createElement("button");
+  revealBtn.className = "reveal-btn";
+  revealBtn.textContent = "اكشف الإجابة";
+  card.appendChild(revealBtn);
+
+  const answerBox = document.createElement("div");
+  answerBox.className = "answer";
+  answerBox.innerHTML = `
+    <span class="urdu">${esc(p.ur)}</span>
+    <span class="translit">${esc(p.translit)}</span>
+    <div class="ar-echo">${esc(p.ar)}</div>
+  `;
+  const listenBtn = document.createElement("button");
+  listenBtn.className = "speak";
+  listenBtn.textContent = "🔊 استمع";
+  listenBtn.addEventListener("click", () => speak(p.ur, listenBtn));
+  answerBox.appendChild(listenBtn);
+  card.appendChild(answerBox);
+
+  const gradeRow = document.createElement("div");
+  gradeRow.className = "grade-row";
+  gradeRow.style.display = "none";
+  gradeRow.innerHTML = `
+    <button class="grade-again" data-grade="again">لم أتذكر</button>
+    <button class="grade-hard" data-grade="hard">بصعوبة</button>
+    <button class="grade-easy" data-grade="easy">سهل</button>
+  `;
+  card.appendChild(gradeRow);
+
+  area.appendChild(card);
+
+  revealBtn.addEventListener("click", () => {
+    answerBox.classList.add("show");
+    revealBtn.style.display = "none";
+    gradeRow.style.display = "flex";
+  });
+  gradeRow.querySelectorAll("button").forEach(b => {
+    b.addEventListener("click", () => grade(b.dataset.grade));
+  });
+}
+
+function grade(g){
+  const pr = progress[current.id];
+  if (g === "again"){
+    pr.box = 1;
+  } else if (g === "hard"){
+    pr.box = Math.max(1, pr.box);
+  } else if (g === "easy"){
+    pr.box = Math.min(5, pr.box + 1);
+  }
+  pr.due = addDays(todayStr(), INTERVALS[pr.box]);
+  saveLocal();
+  scheduleGhSync();
+  renderReview();
+}
+
+/* ============ BROWSE ============ */
+function renderBrowse(){
+  const cats = [...new Set(phrases.map(p => p.cat))];
+  const area = document.getElementById("browse-area");
+  area.innerHTML = "";
+  cats.forEach(cat => {
+    const block = document.createElement("div");
+    block.className = "cat-block";
+    const head = document.createElement("div");
+    head.className = "cat-head";
+    head.textContent = cat;
+    block.appendChild(head);
+
+    phrases.filter(p => p.cat === cat).forEach(p => {
+      const box = progress[p.id] ? progress[p.id].box : 1;
+      const row = document.createElement("div");
+      row.className = "ledger-row";
+      row.innerHTML = `
+        <div class="col-ar">${esc(p.ar)}</div>
+        <div class="col-ur">
+          <span class="urdu">${esc(p.ur)}</span>
+          <span class="translit">${esc(p.translit)}</span>
+        </div>
+      `;
+      const sayBtn = document.createElement("button");
+      sayBtn.className = "speak small";
+      sayBtn.textContent = "🔊";
+      sayBtn.addEventListener("click", () => speak(p.ur, sayBtn));
+      row.appendChild(sayBtn);
+
+      const dotsWrap = document.createElement("div");
+      dotsWrap.className = "col-box";
+      for (let i = 1; i <= 5; i++){
+        const dot = document.createElement("span");
+        dot.className = "dot" + (i <= box ? " filled" : "");
+        dotsWrap.appendChild(dot);
+      }
+      row.appendChild(dotsWrap);
+      block.appendChild(row);
+    });
+    area.appendChild(block);
+  });
+}
+
+/* ============ ADD (single) ============ */
+function renderCatOptions(){
+  const sel = document.getElementById("f-cat");
+  const prev = sel.value;
+  const cats = [...new Set(phrases.map(p => p.cat))];
+  sel.innerHTML = cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("")
+    + `<option value="__new__">+ تصنيف جديد</option>`;
+  if (cats.includes(prev)) sel.value = prev;
+}
+document.getElementById("f-cat").addEventListener("change", (e) => {
+  if (e.target.value === "__new__"){
+    const name = prompt("اسم التصنيف الجديد:");
+    if (name){
+      const opt = document.createElement("option");
+      opt.value = name; opt.textContent = name; opt.selected = true;
+      e.target.insertBefore(opt, e.target.lastElementChild);
+    } else {
+      e.target.value = e.target.options[0].value;
+    }
+  }
+});
+
+document.getElementById("add-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const id = "custom-" + Date.now();
+  const p = {
+    id,
+    ar: document.getElementById("f-ar").value.trim(),
+    ur: document.getElementById("f-ur").value.trim(),
+    translit: document.getElementById("f-translit").value.trim(),
+    cat: document.getElementById("f-cat").value,
+  };
+  phrases.push(p);
+  progress[id] = { box: 1, due: todayStr() };
+  e.target.reset();
+  saveLocal();
+  scheduleGhSync();
+  updateStats();
+  toast("أُضيفت الجملة، وستظهر في المراجعة اليوم.");
+});
+
+/* ============ ADD (batch) ============ */
+function renderBatchCatOptions(){
+  const sel = document.getElementById("batch-cat");
+  const prev = sel.value;
+  const cats = [...new Set(phrases.map(p => p.cat))];
+  sel.innerHTML = cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("")
+    + `<option value="عام">عام (تصنيف جديد)</option>`;
+  if (cats.includes(prev)) sel.value = prev;
+}
+
+function parseBatchInput(raw, fallbackCat){
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  // Try JSON array first: [{ar, ur, translit, cat}, ...]
+  if (trimmed.startsWith("[")){
+    try {
+      const arr = JSON.parse(trimmed);
+      if (Array.isArray(arr)){
+        return arr
+          .filter(o => o && o.ar && o.ur && o.translit)
+          .map(o => ({ ar: String(o.ar).trim(), ur: String(o.ur).trim(), translit: String(o.translit).trim(), cat: (o.cat && String(o.cat).trim()) || fallbackCat }));
+      }
+    } catch(e){ /* fall through to line parsing */ }
+  }
+  // Line-based: ar | ur | translit | cat(optional)
+  return trimmed.split("\n")
+    .map(line => line.trim())
+    .filter(line => line.length)
+    .map(line => {
+      const parts = line.split("|").map(s => s.trim());
+      if (parts.length < 3) return null;
+      const [ar, ur, translit, cat] = parts;
+      if (!ar || !ur || !translit) return null;
+      return { ar, ur, translit, cat: cat || fallbackCat };
+    })
+    .filter(Boolean);
+}
+
+document.getElementById("batch-add-btn").addEventListener("click", () => {
+  const fallbackCat = document.getElementById("batch-cat").value || "عام";
+  const raw = document.getElementById("batch-area").value;
+  const parsed = parseBatchInput(raw, fallbackCat);
+  if (!parsed.length){
+    toast("لم يتم التعرّف على أي جملة صالحة. تحقّق من الصيغة.");
+    return;
+  }
+  const today = todayStr();
+  parsed.forEach((p, i) => {
+    const id = "batch-" + Date.now() + "-" + i;
+    phrases.push({ id, ar: p.ar, ur: p.ur, translit: p.translit, cat: p.cat });
+    progress[id] = { box: 1, due: today };
+  });
+  document.getElementById("batch-area").value = "";
+  saveLocal();
+  scheduleGhSync();
+  updateStats();
+  renderCatOptions();
+  renderBatchCatOptions();
+  toast("أُضيفت " + parsed.length + " جملة إلى قائمة المراجعة.");
+});
+
+/* ============ DATA EXPORT / IMPORT ============ */
+document.getElementById("export-btn").addEventListener("click", () => {
+  const payload = { phrases, progress, updatedAt, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "urdu-progress-" + todayStr() + ".json";
+  a.click();
+});
+
+document.getElementById("import-file").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (data.phrases && data.progress){
+        applyState({ phrases: data.phrases, progress: data.progress, updatedAt: Date.now() });
+        scheduleGhSync();
+        toast("تم استيراد التقدّم بنجاح.");
+      } else {
+        toast("ملف غير صالح.");
+      }
+    } catch(err){
+      toast("تعذّر قراءة الملف.");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+/* ============ INIT ============ */
+loadGhConfig();
+renderReview();
+updateStats();
+if (ghToken) ghInitialSync();
+</script>
+</body>
+</html>
