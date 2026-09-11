@@ -375,10 +375,10 @@
     <h2 class="section-title">حصة المراجعة</h2>
     <p class="section-sub">استرجع الجملة من ذاكرتك قبل أن تكشف الإجابة — الاستدعاء هو ما يثبّت الحفظ، وليس إعادة القراءة.</p>
     <div class="voice-warn" id="voice-warn">
-      لا يوجد صوت أوردو مثبّت في متصفحك، لذلك سيُستخدم صوت بديل عبر الإنترنت (ترجمة جوجل الصوتية) عند الاستماع.
-      إن ظهرت رسالة تعذّر تشغيل الصوت رغم اتصالك بالإنترنت، فالسبب الأرجح مانع إعلانات أو إضافة خصوصية تحجب
-      <code>translate.google.com</code> — جرّب تعطيلها لهذا الموقع، أو افتح الصفحة من متصفح/جهاز آخر.
+      لا يوجد صوت أوردو محلي مثبّت في متصفحك، لذلك ستحاول الأداة صوتًا بديلًا عبر الإنترنت، وإن تعذّر ذلك ستنطق
+      الكتابة اللاتينية بدلًا من الأوردو الأصلي حتى لا يبقى الزر صامتًا بلا أي رد فعل.
     </div>
+    <button type="button" class="btn secondary" id="voice-test-btn" style="margin-bottom:18px;">اختبار الصوت الآن</button>
     <div id="review-area"></div>
   </section>
 
@@ -443,6 +443,11 @@
         <b>Personal Access Token دقيق الصلاحية (Fine-grained)</b> مقتصر على هذا المستودع فقط بصلاحية
         <b>Contents: Read and write</b> — لا تُعطِه أي صلاحية إضافية. الرمز يُحفظ في متصفحك فقط (localStorage) ولا يُرسل إلى أي مكان
         سوى GitHub مباشرة، ولا يُحفظ داخل المستودع أبدًا.
+      </p>
+      <p style="background:#f3e3c9;border:1px solid var(--saffron);padding:10px 14px;">
+        <b>خطأ شائع:</b> إن ظهرت رسالة <code>Resource not accessible by personal access token</code> عند المزامنة،
+        فهذا يعني أن صلاحية Contents ضُبطت على <b>Read-only</b> بالخطأ بدل <b>Read and write</b>. عدّل صلاحيات
+        الرمز من صفحة إعدادات GitHub، أو أنشئ رمزًا جديدًا واحرص هذه المرة على اختيار Read and write تحديدًا.
       </p>
       <div class="gh-settings">
         <div>
@@ -736,6 +741,9 @@ async function ghPushState(){
   }
   if (!res.ok){
     const errText = await res.text().catch(() => "");
+    if (res.status === 403 && errText.includes("not accessible by personal access token")){
+      throw new Error("الرمز صالح للقراءة فقط. أعد فتح إعدادات الرمز على GitHub واضبط صلاحية Contents على Read and write (وليس Read-only)، أو أنشئ رمزًا جديدًا بهذه الصلاحية.");
+    }
     throw new Error("فشل الحفظ على GitHub (" + res.status + ") " + errText.slice(0,150));
   }
   const json = await res.json();
@@ -812,11 +820,24 @@ document.getElementById("gh-clear-btn").addEventListener("click", () => {
 });
 
 /* ============ VOICE ============ */
+// Three-tier fallback, each tier verified to actually produce sound (an
+// "onstart"/timeout check) rather than trusted blindly — a browser can report
+// a voice as available and then fail completely silently when it can't be
+// used (e.g. a "network" voice that streams synthesis from a server that
+// turns out to be unreachable on this network).
 let urduVoice = null;
+let currentUtterance = null; // kept alive on purpose: some browsers stop
+                              // speaking if the SpeechSynthesisUtterance gets
+                              // garbage-collected mid-utterance.
+
 function pickVoice(){
   if (!("speechSynthesis" in window)) return;
   const voices = speechSynthesis.getVoices();
-  urduVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith("ur")) || null;
+  // Prefer a fully local ("localService") Urdu voice — it works offline and
+  // doesn't depend on reaching any external TTS server.
+  urduVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith("ur") && v.localService)
+           || voices.find(v => v.lang && v.lang.toLowerCase().startsWith("ur"))
+           || null;
   document.getElementById("voice-warn").classList.toggle("show", !urduVoice);
 }
 if ("speechSynthesis" in window){
@@ -824,6 +845,42 @@ if ("speechSynthesis" in window){
   speechSynthesis.onvoiceschanged = pickVoice;
 } else {
   document.getElementById("voice-warn").classList.add("show");
+}
+
+function speakNative(text, voice, timeoutMs){
+  return new Promise((resolve, reject) => {
+    if (!("speechSynthesis" in window)){
+      reject(Object.assign(new Error("no-speech-api"), { code: "no-speech-api" }));
+      return;
+    }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    if (voice){ u.lang = voice.lang; u.voice = voice; }
+    u.rate = 0.85;
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      speechSynthesis.cancel();
+      reject(Object.assign(new Error("native-tts-timeout"), { code: "timeout" }));
+    }, timeoutMs);
+    u.onend = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      currentUtterance = null;
+      resolve();
+    };
+    u.onerror = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      currentUtterance = null;
+      reject(Object.assign(new Error("native-tts-failed"), { code: "native-tts-failed" }));
+    };
+    currentUtterance = u;
+    speechSynthesis.speak(u);
+  });
 }
 
 function playViaOnlineTts(text){
@@ -864,39 +921,66 @@ function playViaOnlineTts(text){
   });
 }
 
+/**
+ * Tries, in order: a native Urdu voice → an online Urdu TTS service → any
+ * local device voice reading the Latin transliteration instead (works fully
+ * offline; not authentic Urdu pronunciation, but always audible). Each tier
+ * is verified to actually complete, not just accepted without error.
+ */
+async function speak(ur, translit, btn){
+  if (btn) btn.disabled = true;
+  const attempts = [];
+  try {
+    pickVoice(); // re-check in case voices finished loading since page load
+    if (urduVoice){
+      try {
+        await speakNative(ur, urduVoice, 6000);
+        return "native";
+      } catch(e){ attempts.push(e); }
+    }
+    try {
+      await playViaOnlineTts(ur);
+      return "online";
+    } catch(e){ attempts.push(e); }
+
+    if (translit){
+      const anyLocalVoice = ("speechSynthesis" in window)
+        ? speechSynthesis.getVoices().find(v => v.localService) || null
+        : null;
+      await speakNative(translit, anyLocalVoice, 6000);
+      toast("تعذّر نطق الأوردو الأصلي، فتم نطق الكتابة اللاتينية بدلًا منه.");
+      return "translit";
+    }
+    throw attempts[attempts.length - 1] || new Error("no-fallback-available");
+  } catch(e){
+    console.error("speak() failed after all fallbacks:", attempts, e);
+    toast(describeSpeakError(e));
+    return null;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function describeSpeakError(err){
   if (err && err.code === "blocked-by-browser"){
     return "منع المتصفح تشغيل الصوت — اضغط زر الصوت مرة أخرى.";
   }
   if (err && err.code === "timeout"){
-    return "استغرقت خدمة الصوت البديلة وقتًا طويلًا دون استجابة — الأرجح أن شبكتك تحجب translate.google.com بصمت.";
+    return "لم تستجب أي من خدمات الصوت (لا المحلية ولا عبر الإنترنت) — تحقّق من إعدادات الصوت في جهازك.";
   }
-  return "تعذّر تشغيل خدمة الصوت البديلة عبر الإنترنت (translate.google.com). قد يكون مانع إعلانات أو جدار حماية الشبكة يحجبها رغم اتصالك بالإنترنت.";
+  if (err && err.code === "no-speech-api"){
+    return "متصفحك لا يدعم تحويل النص إلى كلام إطلاقًا.";
+  }
+  return "تعذّر تشغيل الصوت من كل المصادر المتاحة. تحقّق من مستوى الصوت في جهازك، أو جرّب متصفحًا آخر.";
 }
 
-async function speak(text, btn){
-  if (btn) btn.disabled = true;
-  try {
-    // Re-check synchronously (cheap, no await) in case voices finished
-    // loading after page load but before this click.
-    pickVoice();
-    if (urduVoice){
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = urduVoice.lang;
-      u.voice = urduVoice;
-      u.rate = 0.85;
-      speechSynthesis.speak(u);
-      return;
-    }
-    await playViaOnlineTts(text);
-  } catch(e){
-    console.error("speak() failed:", e);
-    toast(describeSpeakError(e));
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
+document.getElementById("voice-test-btn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const result = await speak("السلام علیکم", "Assalamu Alaikum", btn);
+  // "translit" and total failure already show their own toast inside speak().
+  if (result === "native") toast("نجح: تم استخدام صوت أوردو محلي في جهازك. 🔊");
+  else if (result === "online") toast("نجح: تم استخدام خدمة الصوت البديلة عبر الإنترنت. 🔊");
+});
 
 /* ============ TABS ============ */
 document.querySelectorAll("nav.tabs button").forEach(btn => {
@@ -959,7 +1043,7 @@ function renderReview(){
     const sayBtn = document.createElement("button");
     sayBtn.className = "speak small";
     sayBtn.textContent = "🔊";
-    sayBtn.addEventListener("click", () => speak(p.ur, sayBtn));
+    sayBtn.addEventListener("click", () => speak(p.ur, p.translit, sayBtn));
     face.appendChild(sayBtn);
   }
   card.appendChild(face);
@@ -979,7 +1063,7 @@ function renderReview(){
   const listenBtn = document.createElement("button");
   listenBtn.className = "speak";
   listenBtn.textContent = "🔊 استمع";
-  listenBtn.addEventListener("click", () => speak(p.ur, listenBtn));
+  listenBtn.addEventListener("click", () => speak(p.ur, p.translit, listenBtn));
   answerBox.appendChild(listenBtn);
   card.appendChild(answerBox);
 
@@ -1047,7 +1131,7 @@ function renderBrowse(){
       const sayBtn = document.createElement("button");
       sayBtn.className = "speak small";
       sayBtn.textContent = "🔊";
-      sayBtn.addEventListener("click", () => speak(p.ur, sayBtn));
+      sayBtn.addEventListener("click", () => speak(p.ur, p.translit, sayBtn));
       row.appendChild(sayBtn);
 
       const dotsWrap = document.createElement("div");
