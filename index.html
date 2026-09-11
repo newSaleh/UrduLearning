@@ -901,7 +901,7 @@ function playViaOnlineTts(text){
       if (settled) return;
       settled = true;
       reject(Object.assign(new Error("online-tts-timeout"), { code: "timeout" }));
-    }, 6000);
+    }, 3500);
     audio.onended = () => {
       if (settled) return;
       settled = true;
@@ -968,14 +968,14 @@ function speak(ur, translit, btn){
 
     let attempt;
     if (tier === "native"){
-      attempt = speakNative(ur, urduVoice, 6000);
+      attempt = speakNative(ur, urduVoice, 3500);
     } else if (tier === "online"){
       attempt = playViaOnlineTts(ur);
     } else {
       const anyLocalVoice = ("speechSynthesis" in window)
         ? speechSynthesis.getVoices().find(v => v.localService) || null
         : null;
-      attempt = speakNative(translit, anyLocalVoice, 6000);
+      attempt = speakNative(translit, anyLocalVoice, 3500);
     }
 
     const reenable = () => { if (btn) btn.disabled = false; };
@@ -1024,15 +1024,15 @@ function describeSpeakError(err){
 document.getElementById("voice-test-btn").addEventListener("click", (e) => {
   const btn = e.currentTarget;
   let settled = false;
-  // Belt-and-suspenders: if literally nothing else fires within 8s (a
+  // Belt-and-suspenders: if literally nothing else fires within 5s (a
   // platform-specific hang no other guard here anticipated), still tell the
   // user something instead of leaving them staring at silence.
   const safetyTimer = setTimeout(() => {
     if (settled) return;
     settled = true;
     if (btn) btn.disabled = false;
-    toast("لم يستجب نظام الصوت في هذا المتصفح إطلاقًا خلال 8 ثوانٍ.");
-  }, 8000);
+    toast("لم يستجب نظام الصوت في هذا المتصفح إطلاقًا خلال 5 ثوانٍ.");
+  }, 5000);
 
   Promise.resolve(speak("السلام علیکم", "Assalamu Alaikum", btn))
     .then(result => {
