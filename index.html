@@ -956,44 +956,56 @@ function nextTier(tier){
 }
 
 function speak(ur, translit, btn){
-  pickVoice(); // re-check in case voices finished loading since page load
-  let tier = getPreferredTier();
-  if (tier === "native" && !urduVoice) tier = "online";
-  if (btn) btn.disabled = true;
+  // Everything here is wrapped defensively: speak() must NEVER throw
+  // synchronously and must ALWAYS return a settling promise, no matter what
+  // the platform does, so a caller can never end up with a stuck disabled
+  // button and zero feedback.
+  try {
+    pickVoice(); // re-check in case voices finished loading since page load
+    let tier = getPreferredTier();
+    if (tier === "native" && !urduVoice) tier = "online";
+    if (btn) btn.disabled = true;
 
-  let attempt;
-  if (tier === "native"){
-    attempt = speakNative(ur, urduVoice, 6000);
-  } else if (tier === "online"){
-    attempt = playViaOnlineTts(ur);
-  } else {
-    const anyLocalVoice = ("speechSynthesis" in window)
-      ? speechSynthesis.getVoices().find(v => v.localService) || null
-      : null;
-    attempt = speakNative(translit, anyLocalVoice, 6000);
+    let attempt;
+    if (tier === "native"){
+      attempt = speakNative(ur, urduVoice, 6000);
+    } else if (tier === "online"){
+      attempt = playViaOnlineTts(ur);
+    } else {
+      const anyLocalVoice = ("speechSynthesis" in window)
+        ? speechSynthesis.getVoices().find(v => v.localService) || null
+        : null;
+      attempt = speakNative(translit, anyLocalVoice, 6000);
+    }
+
+    const reenable = () => { if (btn) btn.disabled = false; };
+
+    return attempt
+      .then(() => {
+        reenable();
+        if (tier === "translit"){
+          toast("تعذّر نطق الأوردو الأصلي في هذا الجهاز، فتم نطق الكتابة اللاتينية بدلًا منه.");
+        }
+        return tier;
+      })
+      .catch(e => {
+        reenable();
+        console.error("speak() tier '" + tier + "' failed:", e);
+        const downgraded = nextTier(tier);
+        if (downgraded !== tier){
+          setPreferredTier(downgraded);
+          toast("تعذّرت هذه الطريقة في الصوت — تم التحويل تلقائيًا لطريقة أخرى، اضغط الزر مرة أخرى للاستماع.");
+        } else {
+          toast(describeSpeakError(e));
+        }
+        return null;
+      });
+  } catch(err){
+    console.error("speak() threw synchronously:", err);
+    if (btn) btn.disabled = false;
+    toast("خطأ غير متوقع عند تشغيل الصوت: " + (err && err.message ? err.message : String(err)));
+    return Promise.resolve(null);
   }
-
-  return attempt
-    .then(() => {
-      if (tier === "translit"){
-        toast("تعذّر نطق الأوردو الأصلي في هذا الجهاز، فتم نطق الكتابة اللاتينية بدلًا منه.");
-      }
-      return tier;
-    })
-    .catch(e => {
-      console.error("speak() tier '" + tier + "' failed:", e);
-      const downgraded = nextTier(tier);
-      if (downgraded !== tier){
-        setPreferredTier(downgraded);
-        toast("تعذّرت هذه الطريقة في الصوت — تم التحويل تلقائيًا لطريقة أخرى، اضغط الزر مرة أخرى للاستماع.");
-      } else {
-        toast(describeSpeakError(e));
-      }
-      return null;
-    })
-    .finally(() => {
-      if (btn) btn.disabled = false;
-    });
 }
 
 function describeSpeakError(err){
@@ -1009,12 +1021,36 @@ function describeSpeakError(err){
   return "تعذّر تشغيل الصوت من كل المصادر المتاحة. تحقّق من مستوى الصوت في جهازك، أو جرّب متصفحًا آخر.";
 }
 
-document.getElementById("voice-test-btn").addEventListener("click", async (e) => {
+document.getElementById("voice-test-btn").addEventListener("click", (e) => {
   const btn = e.currentTarget;
-  const result = await speak("السلام علیکم", "Assalamu Alaikum", btn);
-  // "translit" and total failure already show their own toast inside speak().
-  if (result === "native") toast("نجح: تم استخدام صوت أوردو محلي في جهازك. 🔊");
-  else if (result === "online") toast("نجح: تم استخدام خدمة الصوت البديلة عبر الإنترنت. 🔊");
+  let settled = false;
+  // Belt-and-suspenders: if literally nothing else fires within 8s (a
+  // platform-specific hang no other guard here anticipated), still tell the
+  // user something instead of leaving them staring at silence.
+  const safetyTimer = setTimeout(() => {
+    if (settled) return;
+    settled = true;
+    if (btn) btn.disabled = false;
+    toast("لم يستجب نظام الصوت في هذا المتصفح إطلاقًا خلال 8 ثوانٍ.");
+  }, 8000);
+
+  Promise.resolve(speak("السلام علیکم", "Assalamu Alaikum", btn))
+    .then(result => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(safetyTimer);
+      // "translit" and total failure already show their own toast inside speak().
+      if (result === "native") toast("نجح: تم استخدام صوت أوردو محلي في جهازك. 🔊");
+      else if (result === "online") toast("نجح: تم استخدام خدمة الصوت البديلة عبر الإنترنت. 🔊");
+    })
+    .catch(err => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(safetyTimer);
+      if (btn) btn.disabled = false;
+      console.error("voice-test-btn: unexpected rejection:", err);
+      toast("خطأ غير متوقع: " + (err && err.message ? err.message : String(err)));
+    });
 });
 
 document.getElementById("voice-reset-btn").addEventListener("click", () => {
