@@ -376,9 +376,13 @@
     <p class="section-sub">استرجع الجملة من ذاكرتك قبل أن تكشف الإجابة — الاستدعاء هو ما يثبّت الحفظ، وليس إعادة القراءة.</p>
     <div class="voice-warn" id="voice-warn">
       لا يوجد صوت أوردو محلي مثبّت في متصفحك، لذلك ستحاول الأداة صوتًا بديلًا عبر الإنترنت، وإن تعذّر ذلك ستنطق
-      الكتابة اللاتينية بدلًا من الأوردو الأصلي حتى لا يبقى الزر صامتًا بلا أي رد فعل.
+      الكتابة اللاتينية بدلًا من الأوردو الأصلي حتى لا يبقى الزر صامتًا بلا أي رد فعل. بعض المتصفحات (خصوصًا Safari
+      على آيفون) تحتاج ضغطة زر إضافية عند أول تبديل بين طريقة وأخرى — هذا طبيعي.
     </div>
-    <button type="button" class="btn secondary" id="voice-test-btn" style="margin-bottom:18px;">اختبار الصوت الآن</button>
+    <div class="gh-row" style="margin-bottom:18px;">
+      <button type="button" class="btn secondary" id="voice-test-btn">اختبار الصوت الآن</button>
+      <button type="button" class="btn secondary" id="voice-reset-btn">إعادة تجربة كل طرق الصوت من جديد</button>
+    </div>
     <div id="review-area"></div>
   </section>
 
@@ -922,43 +926,74 @@ function playViaOnlineTts(text){
 }
 
 /**
- * Tries, in order: a native Urdu voice → an online Urdu TTS service → any
- * local device voice reading the Latin transliteration instead (works fully
- * offline; not authentic Urdu pronunciation, but always audible). Each tier
- * is verified to actually complete, not just accepted without error.
+ * Tiers: a native Urdu voice → an online Urdu TTS service → any local device
+ * voice reading the Latin transliteration instead (works fully offline; not
+ * authentic Urdu pronunciation, but always audible).
+ *
+ * iOS Safari only credits an audio/speech API call as "user-initiated" when
+ * it happens synchronously inside the click handler itself — even a single
+ * `await` before it (as when chaining tier 1 → 2 → 3 after each failure) is
+ * enough to make the *next* tier silently blocked. So instead of trying all
+ * tiers in one click, each click makes exactly one synchronous attempt at
+ * the currently-preferred tier; if it fails we just remember to use the next
+ * tier for the *next* click (a fresh gesture), and tell the user to tap
+ * again rather than chaining silently.
  */
-async function speak(ur, translit, btn){
-  if (btn) btn.disabled = true;
-  const attempts = [];
+const VOICE_TIER_KEY = "urduWorkshop:voiceTier:v1";
+function getPreferredTier(){
   try {
-    pickVoice(); // re-check in case voices finished loading since page load
-    if (urduVoice){
-      try {
-        await speakNative(ur, urduVoice, 6000);
-        return "native";
-      } catch(e){ attempts.push(e); }
-    }
-    try {
-      await playViaOnlineTts(ur);
-      return "online";
-    } catch(e){ attempts.push(e); }
+    const saved = localStorage.getItem(VOICE_TIER_KEY);
+    if (saved === "native" || saved === "online" || saved === "translit") return saved;
+  } catch(e){}
+  return urduVoice ? "native" : "online";
+}
+function setPreferredTier(tier){
+  try { localStorage.setItem(VOICE_TIER_KEY, tier); } catch(e){}
+}
+function nextTier(tier){
+  if (tier === "native") return "online";
+  return "translit"; // "online" and "translit" both fall through to translit
+}
 
-    if (translit){
-      const anyLocalVoice = ("speechSynthesis" in window)
-        ? speechSynthesis.getVoices().find(v => v.localService) || null
-        : null;
-      await speakNative(translit, anyLocalVoice, 6000);
-      toast("تعذّر نطق الأوردو الأصلي، فتم نطق الكتابة اللاتينية بدلًا منه.");
-      return "translit";
-    }
-    throw attempts[attempts.length - 1] || new Error("no-fallback-available");
-  } catch(e){
-    console.error("speak() failed after all fallbacks:", attempts, e);
-    toast(describeSpeakError(e));
-    return null;
-  } finally {
-    if (btn) btn.disabled = false;
+function speak(ur, translit, btn){
+  pickVoice(); // re-check in case voices finished loading since page load
+  let tier = getPreferredTier();
+  if (tier === "native" && !urduVoice) tier = "online";
+  if (btn) btn.disabled = true;
+
+  let attempt;
+  if (tier === "native"){
+    attempt = speakNative(ur, urduVoice, 6000);
+  } else if (tier === "online"){
+    attempt = playViaOnlineTts(ur);
+  } else {
+    const anyLocalVoice = ("speechSynthesis" in window)
+      ? speechSynthesis.getVoices().find(v => v.localService) || null
+      : null;
+    attempt = speakNative(translit, anyLocalVoice, 6000);
   }
+
+  return attempt
+    .then(() => {
+      if (tier === "translit"){
+        toast("تعذّر نطق الأوردو الأصلي في هذا الجهاز، فتم نطق الكتابة اللاتينية بدلًا منه.");
+      }
+      return tier;
+    })
+    .catch(e => {
+      console.error("speak() tier '" + tier + "' failed:", e);
+      const downgraded = nextTier(tier);
+      if (downgraded !== tier){
+        setPreferredTier(downgraded);
+        toast("تعذّرت هذه الطريقة في الصوت — تم التحويل تلقائيًا لطريقة أخرى، اضغط الزر مرة أخرى للاستماع.");
+      } else {
+        toast(describeSpeakError(e));
+      }
+      return null;
+    })
+    .finally(() => {
+      if (btn) btn.disabled = false;
+    });
 }
 
 function describeSpeakError(err){
@@ -980,6 +1015,11 @@ document.getElementById("voice-test-btn").addEventListener("click", async (e) =>
   // "translit" and total failure already show their own toast inside speak().
   if (result === "native") toast("نجح: تم استخدام صوت أوردو محلي في جهازك. 🔊");
   else if (result === "online") toast("نجح: تم استخدام خدمة الصوت البديلة عبر الإنترنت. 🔊");
+});
+
+document.getElementById("voice-reset-btn").addEventListener("click", () => {
+  try { localStorage.removeItem(VOICE_TIER_KEY); } catch(e){}
+  toast("تمت إعادة الضبط — اضغط زر الصوت لتجربة أفضل طريقة متاحة من جديد.");
 });
 
 /* ============ TABS ============ */
