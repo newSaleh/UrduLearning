@@ -148,21 +148,20 @@
   .card .answer .translit{font-size:17px;display:block;margin-bottom:14px;}
   .card .answer .ar-echo{font-size:14px;color:#7a705c;margin-bottom:16px;}
 
-  button.speak{
+  button.copy-btn{
     background:var(--indigo);
     color:var(--paper);
     border:none;
     border-radius:50%;
     width:46px;height:46px;
-    font-size:18px;
+    font-size:16px;
     cursor:pointer;
     display:inline-flex;
     align-items:center;
     justify-content:center;
   }
-  button.speak:hover{background:var(--indigo-deep);}
-  button.speak.small{width:34px;height:34px;font-size:14px;}
-  button.speak[disabled]{opacity:.5;cursor:wait;}
+  button.copy-btn:hover{background:var(--indigo-deep);}
+  button.copy-btn.small{width:34px;height:34px;font-size:13px;}
 
   .reveal-btn{
     display:block;
@@ -286,16 +285,6 @@
   details.method p{font-size:14px;color:#4a4232;margin:0 0 14px;}
   details.method p:last-child{margin-bottom:14px;}
 
-  .voice-warn{
-    font-size:13px;
-    background:#f3e3c9;
-    border:1px solid var(--saffron);
-    padding:10px 14px;
-    margin-bottom:18px;
-    display:none;
-  }
-  .voice-warn.show{display:block;}
-
   .gh-box{
     border:1px solid var(--line);
     background:#fbf8f0;
@@ -374,15 +363,11 @@
   <section class="tab active" id="tab-review">
     <h2 class="section-title">حصة المراجعة</h2>
     <p class="section-sub">استرجع الجملة من ذاكرتك قبل أن تكشف الإجابة — الاستدعاء هو ما يثبّت الحفظ، وليس إعادة القراءة.</p>
-    <div class="voice-warn" id="voice-warn">
-      لا يوجد صوت أوردو محلي مثبّت في متصفحك، لذلك ستحاول الأداة صوتًا بديلًا عبر الإنترنت، وإن تعذّر ذلك ستنطق
-      الكتابة اللاتينية بدلًا من الأوردو الأصلي حتى لا يبقى الزر صامتًا بلا أي رد فعل. بعض المتصفحات (خصوصًا Safari
-      على آيفون) تحتاج ضغطة زر إضافية عند أول تبديل بين طريقة وأخرى — هذا طبيعي.
-    </div>
-    <div class="gh-row" style="margin-bottom:18px;">
-      <button type="button" class="btn secondary" id="voice-test-btn">اختبار الصوت الآن</button>
-      <button type="button" class="btn secondary" id="voice-reset-btn">إعادة تجربة كل طرق الصوت من جديد</button>
-    </div>
+    <p class="section-sub">
+      اضغط زر النسخ 📋 بجانب أي جملة أوردو لنسخ نصها الأصلي، ثم الصقه في
+      <a href="https://translate.google.com/?sl=ur&tl=ar" target="_blank" rel="noopener">Google Translate</a>
+      لسماع نطقها.
+    </p>
     <div id="review-area"></div>
   </section>
 
@@ -823,240 +808,36 @@ document.getElementById("gh-clear-btn").addEventListener("click", () => {
   ghStatus("تمت إزالة الرمز من هذا الجهاز.", "ok");
 });
 
-/* ============ VOICE ============ */
-// Three-tier fallback, each tier verified to actually produce sound (an
-// "onstart"/timeout check) rather than trusted blindly — a browser can report
-// a voice as available and then fail completely silently when it can't be
-// used (e.g. a "network" voice that streams synthesis from a server that
-// turns out to be unreachable on this network).
-let urduVoice = null;
-let currentUtterance = null; // kept alive on purpose: some browsers stop
-                              // speaking if the SpeechSynthesisUtterance gets
-                              // garbage-collected mid-utterance.
-
-function pickVoice(){
-  if (!("speechSynthesis" in window)) return;
-  const voices = speechSynthesis.getVoices();
-  // Prefer a fully local ("localService") Urdu voice — it works offline and
-  // doesn't depend on reaching any external TTS server.
-  urduVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith("ur") && v.localService)
-           || voices.find(v => v.lang && v.lang.toLowerCase().startsWith("ur"))
-           || null;
-  document.getElementById("voice-warn").classList.toggle("show", !urduVoice);
+/* ============ CLIPBOARD ============ */
+function copyText(text, btn){
+  const done = () => {
+    toast("تم نسخ النص — الصقه في Google Translate لسماع نطقه.");
+  };
+  const fail = () => {
+    toast("تعذّر النسخ التلقائي. النص: " + text);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(() => legacyCopy(text) ? done() : fail());
+  } else {
+    legacyCopy(text) ? done() : fail();
+  }
 }
-if ("speechSynthesis" in window){
-  pickVoice();
-  speechSynthesis.onvoiceschanged = pickVoice;
-} else {
-  document.getElementById("voice-warn").classList.add("show");
-}
-
-function speakNative(text, voice, timeoutMs){
-  return new Promise((resolve, reject) => {
-    if (!("speechSynthesis" in window)){
-      reject(Object.assign(new Error("no-speech-api"), { code: "no-speech-api" }));
-      return;
-    }
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    if (voice){ u.lang = voice.lang; u.voice = voice; }
-    u.rate = 0.85;
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      speechSynthesis.cancel();
-      reject(Object.assign(new Error("native-tts-timeout"), { code: "timeout" }));
-    }, timeoutMs);
-    u.onend = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      currentUtterance = null;
-      resolve();
-    };
-    u.onerror = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      currentUtterance = null;
-      reject(Object.assign(new Error("native-tts-failed"), { code: "native-tts-failed" }));
-    };
-    currentUtterance = u;
-    speechSynthesis.speak(u);
-  });
-}
-
-function playViaOnlineTts(text){
-  // No native Urdu voice: device voices for other languages (e.g. Hindi)
-  // expect their own script and mispronounce Urdu's Perso-Arabic text, so
-  // fall back to an online TTS service that reads Urdu script correctly.
-  return new Promise((resolve, reject) => {
-    const url = "https://translate.google.com/translate_tts?ie=UTF-8&tl=ur&client=tw-ob&q=" + encodeURIComponent(text);
-    const audio = new Audio(url);
-    let settled = false;
-    // Some networks silently drop this request instead of rejecting it, which
-    // would otherwise leave the button disabled forever with no feedback.
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      reject(Object.assign(new Error("online-tts-timeout"), { code: "timeout" }));
-    }, 3500);
-    audio.onended = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve();
-    };
-    audio.onerror = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      reject(Object.assign(new Error("online-tts-failed"), { code: "online-tts-failed" }));
-    };
-    // .play() is called synchronously (no prior await) so the browser still
-    // credits this call to the user's click and doesn't block it as autoplay.
-    audio.play().catch(err => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      reject(Object.assign(err, { code: err.name === "NotAllowedError" ? "blocked-by-browser" : "online-tts-failed" }));
-    });
-  });
-}
-
-/**
- * Tiers: a native Urdu voice → an online Urdu TTS service → any local device
- * voice reading the Latin transliteration instead (works fully offline; not
- * authentic Urdu pronunciation, but always audible).
- *
- * iOS Safari only credits an audio/speech API call as "user-initiated" when
- * it happens synchronously inside the click handler itself — even a single
- * `await` before it (as when chaining tier 1 → 2 → 3 after each failure) is
- * enough to make the *next* tier silently blocked. So instead of trying all
- * tiers in one click, each click makes exactly one synchronous attempt at
- * the currently-preferred tier; if it fails we just remember to use the next
- * tier for the *next* click (a fresh gesture), and tell the user to tap
- * again rather than chaining silently.
- */
-const VOICE_TIER_KEY = "urduWorkshop:voiceTier:v1";
-function getPreferredTier(){
+function legacyCopy(text){
   try {
-    const saved = localStorage.getItem(VOICE_TIER_KEY);
-    if (saved === "native" || saved === "online" || saved === "translit") return saved;
-  } catch(e){}
-  return urduVoice ? "native" : "online";
-}
-function setPreferredTier(tier){
-  try { localStorage.setItem(VOICE_TIER_KEY, tier); } catch(e){}
-}
-function nextTier(tier){
-  if (tier === "native") return "online";
-  return "translit"; // "online" and "translit" both fall through to translit
-}
-
-function speak(ur, translit, btn){
-  // Everything here is wrapped defensively: speak() must NEVER throw
-  // synchronously and must ALWAYS return a settling promise, no matter what
-  // the platform does, so a caller can never end up with a stuck disabled
-  // button and zero feedback.
-  try {
-    pickVoice(); // re-check in case voices finished loading since page load
-    let tier = getPreferredTier();
-    if (tier === "native" && !urduVoice) tier = "online";
-    if (btn) btn.disabled = true;
-
-    let attempt;
-    if (tier === "native"){
-      attempt = speakNative(ur, urduVoice, 3500);
-    } else if (tier === "online"){
-      attempt = playViaOnlineTts(ur);
-    } else {
-      const anyLocalVoice = ("speechSynthesis" in window)
-        ? speechSynthesis.getVoices().find(v => v.localService) || null
-        : null;
-      attempt = speakNative(translit, anyLocalVoice, 3500);
-    }
-
-    const reenable = () => { if (btn) btn.disabled = false; };
-
-    return attempt
-      .then(() => {
-        reenable();
-        if (tier === "translit"){
-          toast("تعذّر نطق الأوردو الأصلي في هذا الجهاز، فتم نطق الكتابة اللاتينية بدلًا منه.");
-        }
-        return tier;
-      })
-      .catch(e => {
-        reenable();
-        console.error("speak() tier '" + tier + "' failed:", e);
-        const downgraded = nextTier(tier);
-        if (downgraded !== tier){
-          setPreferredTier(downgraded);
-          toast("تعذّرت هذه الطريقة في الصوت — تم التحويل تلقائيًا لطريقة أخرى، اضغط الزر مرة أخرى للاستماع.");
-        } else {
-          toast(describeSpeakError(e));
-        }
-        return null;
-      });
-  } catch(err){
-    console.error("speak() threw synchronously:", err);
-    if (btn) btn.disabled = false;
-    toast("خطأ غير متوقع عند تشغيل الصوت: " + (err && err.message ? err.message : String(err)));
-    return Promise.resolve(null);
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch(e){
+    return false;
   }
 }
-
-function describeSpeakError(err){
-  if (err && err.code === "blocked-by-browser"){
-    return "منع المتصفح تشغيل الصوت — اضغط زر الصوت مرة أخرى.";
-  }
-  if (err && err.code === "timeout"){
-    return "لم تستجب أي من خدمات الصوت (لا المحلية ولا عبر الإنترنت) — تحقّق من إعدادات الصوت في جهازك.";
-  }
-  if (err && err.code === "no-speech-api"){
-    return "متصفحك لا يدعم تحويل النص إلى كلام إطلاقًا.";
-  }
-  return "تعذّر تشغيل الصوت من كل المصادر المتاحة. تحقّق من مستوى الصوت في جهازك، أو جرّب متصفحًا آخر.";
-}
-
-document.getElementById("voice-test-btn").addEventListener("click", (e) => {
-  const btn = e.currentTarget;
-  let settled = false;
-  // Belt-and-suspenders: if literally nothing else fires within 5s (a
-  // platform-specific hang no other guard here anticipated), still tell the
-  // user something instead of leaving them staring at silence.
-  const safetyTimer = setTimeout(() => {
-    if (settled) return;
-    settled = true;
-    if (btn) btn.disabled = false;
-    toast("لم يستجب نظام الصوت في هذا المتصفح إطلاقًا خلال 5 ثوانٍ.");
-  }, 5000);
-
-  Promise.resolve(speak("السلام علیکم", "Assalamu Alaikum", btn))
-    .then(result => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(safetyTimer);
-      // "translit" and total failure already show their own toast inside speak().
-      if (result === "native") toast("نجح: تم استخدام صوت أوردو محلي في جهازك. 🔊");
-      else if (result === "online") toast("نجح: تم استخدام خدمة الصوت البديلة عبر الإنترنت. 🔊");
-    })
-    .catch(err => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(safetyTimer);
-      if (btn) btn.disabled = false;
-      console.error("voice-test-btn: unexpected rejection:", err);
-      toast("خطأ غير متوقع: " + (err && err.message ? err.message : String(err)));
-    });
-});
-
-document.getElementById("voice-reset-btn").addEventListener("click", () => {
-  try { localStorage.removeItem(VOICE_TIER_KEY); } catch(e){}
-  toast("تمت إعادة الضبط — اضغط زر الصوت لتجربة أفضل طريقة متاحة من جديد.");
-});
 
 /* ============ TABS ============ */
 document.querySelectorAll("nav.tabs button").forEach(btn => {
@@ -1116,11 +897,12 @@ function renderReview(){
     face.innerHTML = `<div class="direction-tag">تذكّر الأوردو</div><div class="prompt">${esc(p.ar)}</div>`;
   } else {
     face.innerHTML = `<div class="direction-tag">ما المعنى بالعربية؟</div><div class="prompt urdu">${esc(p.ur)}</div>`;
-    const sayBtn = document.createElement("button");
-    sayBtn.className = "speak small";
-    sayBtn.textContent = "🔊";
-    sayBtn.addEventListener("click", () => speak(p.ur, p.translit, sayBtn));
-    face.appendChild(sayBtn);
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "copy-btn small";
+    copyBtn.textContent = "📋";
+    copyBtn.title = "نسخ نص الأوردو";
+    copyBtn.addEventListener("click", () => copyText(p.ur, copyBtn));
+    face.appendChild(copyBtn);
   }
   card.appendChild(face);
 
@@ -1136,11 +918,11 @@ function renderReview(){
     <span class="translit">${esc(p.translit)}</span>
     <div class="ar-echo">${esc(p.ar)}</div>
   `;
-  const listenBtn = document.createElement("button");
-  listenBtn.className = "speak";
-  listenBtn.textContent = "🔊 استمع";
-  listenBtn.addEventListener("click", () => speak(p.ur, p.translit, listenBtn));
-  answerBox.appendChild(listenBtn);
+  const copyAnswerBtn = document.createElement("button");
+  copyAnswerBtn.className = "btn secondary";
+  copyAnswerBtn.textContent = "📋 نسخ الأوردو";
+  copyAnswerBtn.addEventListener("click", () => copyText(p.ur, copyAnswerBtn));
+  answerBox.appendChild(copyAnswerBtn);
   card.appendChild(answerBox);
 
   const gradeRow = document.createElement("div");
@@ -1204,11 +986,12 @@ function renderBrowse(){
           <span class="translit">${esc(p.translit)}</span>
         </div>
       `;
-      const sayBtn = document.createElement("button");
-      sayBtn.className = "speak small";
-      sayBtn.textContent = "🔊";
-      sayBtn.addEventListener("click", () => speak(p.ur, p.translit, sayBtn));
-      row.appendChild(sayBtn);
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "copy-btn small";
+      copyBtn.textContent = "📋";
+      copyBtn.title = "نسخ نص الأوردو";
+      copyBtn.addEventListener("click", () => copyText(p.ur, copyBtn));
+      row.appendChild(copyBtn);
 
       const dotsWrap = document.createElement("div");
       dotsWrap.className = "col-box";
