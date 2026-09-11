@@ -375,7 +375,9 @@
     <h2 class="section-title">حصة المراجعة</h2>
     <p class="section-sub">استرجع الجملة من ذاكرتك قبل أن تكشف الإجابة — الاستدعاء هو ما يثبّت الحفظ، وليس إعادة القراءة.</p>
     <div class="voice-warn" id="voice-warn">
-      لا يوجد صوت أوردو مثبّت في متصفحك، لذلك سيُستخدم صوت بديل عبر الإنترنت (ترجمة جوجل الصوتية) عند الاستماع. يتطلب هذا اتصالًا بالإنترنت.
+      لا يوجد صوت أوردو مثبّت في متصفحك، لذلك سيُستخدم صوت بديل عبر الإنترنت (ترجمة جوجل الصوتية) عند الاستماع.
+      إن ظهرت رسالة تعذّر تشغيل الصوت رغم اتصالك بالإنترنت، فالسبب الأرجح مانع إعلانات أو إضافة خصوصية تحجب
+      <code>translate.google.com</code> — جرّب تعطيلها لهذا الموقع، أو افتح الصفحة من متصفح/جهاز آخر.
     </div>
     <div id="review-area"></div>
   </section>
@@ -811,53 +813,86 @@ document.getElementById("gh-clear-btn").addEventListener("click", () => {
 
 /* ============ VOICE ============ */
 let urduVoice = null;
-let voicesReadyPromise = null;
 function pickVoice(){
+  if (!("speechSynthesis" in window)) return;
   const voices = speechSynthesis.getVoices();
   urduVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith("ur")) || null;
   document.getElementById("voice-warn").classList.toggle("show", !urduVoice);
 }
 if ("speechSynthesis" in window){
-  voicesReadyPromise = new Promise(resolve => {
-    const existing = speechSynthesis.getVoices();
-    if (existing.length){ pickVoice(); resolve(); return; }
-    speechSynthesis.onvoiceschanged = () => { pickVoice(); resolve(); };
-    setTimeout(() => { pickVoice(); resolve(); }, 1200);
-  });
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
 } else {
   document.getElementById("voice-warn").classList.add("show");
-  voicesReadyPromise = Promise.resolve();
+}
+
+function playViaOnlineTts(text){
+  // No native Urdu voice: device voices for other languages (e.g. Hindi)
+  // expect their own script and mispronounce Urdu's Perso-Arabic text, so
+  // fall back to an online TTS service that reads Urdu script correctly.
+  return new Promise((resolve, reject) => {
+    const url = "https://translate.google.com/translate_tts?ie=UTF-8&tl=ur&client=tw-ob&q=" + encodeURIComponent(text);
+    const audio = new Audio(url);
+    let settled = false;
+    // Some networks silently drop this request instead of rejecting it, which
+    // would otherwise leave the button disabled forever with no feedback.
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(Object.assign(new Error("online-tts-timeout"), { code: "timeout" }));
+    }, 6000);
+    audio.onended = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    audio.onerror = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(Object.assign(new Error("online-tts-failed"), { code: "online-tts-failed" }));
+    };
+    // .play() is called synchronously (no prior await) so the browser still
+    // credits this call to the user's click and doesn't block it as autoplay.
+    audio.play().catch(err => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(Object.assign(err, { code: err.name === "NotAllowedError" ? "blocked-by-browser" : "online-tts-failed" }));
+    });
+  });
+}
+
+function describeSpeakError(err){
+  if (err && err.code === "blocked-by-browser"){
+    return "منع المتصفح تشغيل الصوت — اضغط زر الصوت مرة أخرى.";
+  }
+  if (err && err.code === "timeout"){
+    return "استغرقت خدمة الصوت البديلة وقتًا طويلًا دون استجابة — الأرجح أن شبكتك تحجب translate.google.com بصمت.";
+  }
+  return "تعذّر تشغيل خدمة الصوت البديلة عبر الإنترنت (translate.google.com). قد يكون مانع إعلانات أو جدار حماية الشبكة يحجبها رغم اتصالك بالإنترنت.";
 }
 
 async function speak(text, btn){
   if (btn) btn.disabled = true;
   try {
-    await voicesReadyPromise;
+    // Re-check synchronously (cheap, no await) in case voices finished
+    // loading after page load but before this click.
+    pickVoice();
     if (urduVoice){
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = urduVoice.lang;
       u.voice = urduVoice;
       u.rate = 0.85;
-      await new Promise(resolve => {
-        u.onend = resolve;
-        u.onerror = resolve;
-        speechSynthesis.speak(u);
-      });
+      speechSynthesis.speak(u);
       return;
     }
-    // No native Urdu voice: device voices for other languages (e.g. Hindi)
-    // expect their own script and mispronounce Urdu's Perso-Arabic text, so
-    // fall back to an online TTS service that reads Urdu script correctly.
-    const url = "https://translate.google.com/translate_tts?ie=UTF-8&tl=ur&client=tw-ob&q=" + encodeURIComponent(text);
-    const audio = new Audio(url);
-    await audio.play();
-    await new Promise(resolve => {
-      audio.onended = resolve;
-      audio.onerror = resolve;
-    });
+    await playViaOnlineTts(text);
   } catch(e){
-    toast("تعذّر تشغيل الصوت — تحقّق من الاتصال بالإنترنت.");
+    console.error("speak() failed:", e);
+    toast(describeSpeakError(e));
   } finally {
     if (btn) btn.disabled = false;
   }
